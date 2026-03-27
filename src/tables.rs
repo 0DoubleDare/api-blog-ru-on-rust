@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 #[derive(Serialize)]
 pub struct User {
@@ -9,7 +9,12 @@ pub struct User {
 #[derive(Serialize)]
 pub struct Post {
     pub id: i32,
-    pub title: String,
-    pub description: String,
+    pub title: Option<String>,
+    pub description: Option<String>,
     pub author_id: i32,
+}
+
+#[derive(Deserialize)]
+pub struct AddUser {
+    pub name: String
 }

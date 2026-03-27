@@ -1,15 +1,17 @@
 mod tables;
 
-use tables::User;
+use tables::{User, Post, AddUser};
 use axum::{
-    routing::get,
+    routing::{get, post},
     Router,
     Json,
-    extract::{State, Path}
+    extract::{State, Path},
+    http::StatusCode
 };
 use serde_json::json;
 use serde::Serialize;
 use sqlx::{mysql::MySqlPoolOptions, MySqlPool};
+
 
 #[tokio::main]
 async fn main() {
@@ -32,6 +34,8 @@ async fn main() {
         .route("/", get(async || { "Hello Axum" }))
         .route("/users", get(get_users))
         .route("/users/:id", get(get_user_by_id))
+        .route("/users", post(add_user))
+        .route("/posts", get(get_posts))
         .with_state(pool);
 
     let url = "127.0.0.1:3030";
@@ -42,6 +46,27 @@ async fn main() {
     axum::serve(listener, api_app).await.unwrap();
 }
 
+async fn add_user(State(pool): State<MySqlPool>, Json(payload): Json<AddUser>)
+    -> Result<(StatusCode, Json<User>), StatusCode> {
+    let result = sqlx::query(
+        "INSERT INTO users(name) VALUES (?)"
+    ).bind(&payload.name)
+        .execute(&pool)
+        .await
+        .map_err(|e| {
+            tracing::error!("Error with post values: {e}");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+
+    let new_user_id = result.last_insert_id();
+
+    let user = User {
+        id: new_user_id as i32,
+        name: Some(payload.name)
+    };
+
+    Ok((StatusCode::CREATED, Json(user)))
+}
 async fn get_users(State(pool): State<MySqlPool>) -> Json<Vec<User>> {
     let result = sqlx::query_as!(
         User,
@@ -71,6 +96,21 @@ async fn get_user_by_id(State(pool): State<MySqlPool>,
         Err(e) => {
             tracing::error!("Failed to select user: {e}");
             Json(None)
+        }
+    }
+}
+
+async fn get_posts(State(pool): State<MySqlPool>) -> Json<Vec<Post>> {
+    let result = sqlx::query_as!(
+        Post,
+        "SELECT * FROM posts"
+    ).fetch_all(&pool).await;
+
+    match result {
+        Ok(posts) => Json(posts),
+        Err(e) => {
+            tracing::error!("Failed to select posts: {e}");
+            Json(vec![])
         }
     }
 }
