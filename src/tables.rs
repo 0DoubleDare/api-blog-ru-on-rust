@@ -18,3 +18,11 @@ pub struct Post {
 pub struct AddUser {
     pub name: String
 }
+
+#[derive(Deserialize)]
+pub struct AddPost {
+    // pub id: i32,
+    pub title: Option<String>,
+    pub description: Option<String>,
+    pub author_id: i32
+}
