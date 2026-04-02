@@ -1,17 +1,20 @@
-mod tables;
-
-use tables::*;
 use axum::{
+    // Работа с роуторами
+    extract::{Form, Path, State},
+    http::StatusCode,
     routing::{get, post},
-    Router,
+    // Работа с get, формами
     Json,
-    extract::{State, Path, Form},
-    http::StatusCode
+    // enum с статус кодами ответа
+    Router
 };
+// Используется для работы с JSON
 use serde_json::json;
 use serde::Serialize;
+// Подключение к БД
 use sqlx::{mysql::MySqlPoolOptions, MySqlPool};
-
+use api_blog_ru::models::post_model::*;
+use api_blog_ru::models::user_model::*;
 
 #[tokio::main]
 async fn main() {
@@ -46,109 +49,4 @@ async fn main() {
 
     tracing::info!("Open server in http://{url}");
     axum::serve(listener, api_app).await.unwrap();
-}
-
-async fn get_post_by_id(State(pool): State<MySqlPool>, Path(id): Path<i32>) {
-    todo!("Реализовать получение поста по ID")
-}
-async fn add_post(State(pool): State<MySqlPool>, Form(payload): Form<AddPost>)
-    -> Result<(StatusCode, Json<Post>), StatusCode> {
-    let result = sqlx::query(
-        "INSERT INTO posts(title, description, author_id) VALUES (?, ?, ?)"
-    ).bind(&payload.title).bind(&payload.description).bind(&payload.author_id)
-        .execute(&pool).await
-        .map_err(
-            |error| {
-                tracing::info!("Add post error: {error}");
-                StatusCode::INTERNAL_SERVER_ERROR
-            })?;
-
-    let new_post_id = result.last_insert_id();
-
-    let post =  Post {
-        id: new_post_id as i32,
-        title: Some(payload.title.unwrap()),
-        description: Some(payload.description.unwrap()),
-        author_id: payload.author_id
-    };
-
-    Ok((StatusCode::CREATED, Json(post)))
-
-}
-async fn add_user(State(pool): State<MySqlPool>, Json(payload): Json<AddUser>)
-    -> Result<(StatusCode, Json<User>), StatusCode> {
-    let result = sqlx::query(
-        "INSERT INTO users(name) VALUES (?)"
-    ).bind(&payload.name)
-        .execute(&pool)
-        .await
-        .map_err(|e| {
-            tracing::error!("Error with post values: {e}");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-
-    let new_user_id = result.last_insert_id();
-
-    let user = User {
-        id: new_user_id as i32,
-        name: Some(payload.name)
-    };
-
-    Ok((StatusCode::CREATED, Json(user)))
-}
-async fn get_users(State(pool): State<MySqlPool>) -> Json<Vec<User>> {
-    let result = sqlx::query_as!(
-        User,
-        "SELECT * FROM users"
-    ).fetch_all(&pool).await;
-
-    match result {
-        Ok(users) => {
-            tracing::info!("Success to get `users` table");
-            Json(users)
-        }
-        Err(e) => {
-            tracing::error!("Failed to select users: {e}");
-            Json(vec![])
-        }
-    }
-}
-
-async fn get_user_by_id(State(pool): State<MySqlPool>,
-    Path(id): Path<i32>
-) -> Json<Option<User>>
-{
-    let result = sqlx::query_as!(
-        User,
-        "SELECT * FROM users WHERE id = ?",
-        id
-    ).fetch_optional(&pool).await;
-    match result {
-        Ok(user) => {
-            tracing::info!("Succed to get `user` from `users` by id");
-            Json(user)
-        }
-        Err(e) => {
-            tracing::error!("Failed to select user: {e}");
-            Json(None)
-        }
-    }
-}
-
-async fn get_posts(State(pool): State<MySqlPool>) -> Json<Vec<Post>> {
-    let result = sqlx::query_as!(
-        Post,
-        "SELECT * FROM posts"
-    ).fetch_all(&pool).await;
-
-    match result {
-        Ok(posts) => {
-            tracing::info!("Success to get `posts`");
-            Json(posts)
-        },
-        Err(e) => {
-            tracing::error!("Failed to select posts: {e}");
-            Json(vec![])
-        }
-    }
 }

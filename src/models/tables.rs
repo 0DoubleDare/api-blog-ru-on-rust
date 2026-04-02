@@ -1,5 +1,6 @@
 use serde::{Serialize, Deserialize};
-
+// Serialize - преобразование данных ИЗ массива / вектора В json
+// Deserialize - Преобразование данных В массива / вектора ИЗ json
 #[derive(Serialize)]
 pub struct User {
     pub id: i32,
